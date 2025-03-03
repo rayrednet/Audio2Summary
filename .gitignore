@@ -1,0 +1,20 @@
+# Ignore input and output folders
+inputs/
+outputs/
+
+# Ignore Python environment files
+.env
+
+# Ignore dependency management files (optional if using Pipenv)
+Pipfile
+Pipfile.lock
+
+# Ignore common Python cache and artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore logs and temp files
+*.log
+*.tmp
