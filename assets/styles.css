@@ -1,0 +1,52 @@
+/* styles.css */
+.stepper {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    font-family: 'Arial', sans-serif;
+    max-height: 100%; /* ✅ Ensure it expands properly */
+    overflow-y: auto;  /* ✅ Allow scrolling if needed */
+}
+.step {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1); /* Transparent grey */
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease-in-out;
+    color: white; /* ✅ Ensure text remains white */
+}
+.circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    font-weight: bold;
+    margin-right: 10px;
+    background: #1e1e1e;
+    color: white; /* ✅ Keep number color white */
+}
+.active .circle {
+    border-color: #4f46e5;
+    background-color: #4f46e5;
+    color: white;
+}
+.completed {
+    border-left: 4px solid #FF957F;
+    background: rgba(255, 149, 127, 0.2);
+    color: white; /* ✅ Ensure completed steps stay white */
+}
+.completed .circle {
+    border-color: #FF957F;
+    background-color: #FF957F;
+    color: white;
+}
+.inactive {
+    color: white; /* ✅ Keep inactive steps white too */
+}
