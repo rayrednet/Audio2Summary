@@ -1,6 +1,7 @@
 # Ignore input and output folders
 inputs/
 outputs/
+uploads/
 
 # Ignore Python environment files
 .env
