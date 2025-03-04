@@ -94,10 +94,12 @@ stepper_html, step_count = render_stepper(st.session_state.progress)
 height_needed = step_count * 70 + 100  # Adjusted for padding
 
 # ✅ Use `components.html()` instead of `st.empty().html()`
-stepper_container = components.html(f"""
-    <style>{css}</style>
-    {stepper_html}
-""", height=height_needed)
+stepper_container = st.empty()
+with stepper_container:
+    components.html(f"""
+        <style>{css}</style>
+        {stepper_html}
+    """, height=height_needed)
 
 if uploaded_file:
     st.info("Uploading and processing... please wait.")
@@ -119,19 +121,25 @@ if uploaded_file:
                 for step in range(step_count - 1):
                     st.session_state.progress = step
                     stepper_html, _ = render_stepper(st.session_state.progress)
-                    stepper_container = components.html(f"""
-                        <style>{css}</style>
-                        {stepper_html}
-                    """, height=height_needed)
+
+                    # ✅ Use stepper_container to dynamically update the UI
+                    with stepper_container:
+                        components.html(f"""
+                            <style>{css}</style>
+                            {stepper_html}
+                        """, height=height_needed)
+
                     time.sleep(2)
 
-            # ✅ Final step
+            # ✅ Final step update
             st.session_state.progress = step_count - 1
             stepper_html, _ = render_stepper(st.session_state.progress)
-            stepper_container = components.html(f"""
-                <style>{css}</style>
-                {stepper_html}
-            """, height=height_needed)
+
+            with stepper_container:
+                components.html(f"""
+                    <style>{css}</style>
+                    {stepper_html}
+                """, height=height_needed)
 
             st.success("🎉 Your Meeting Minutes are ready!")
 
