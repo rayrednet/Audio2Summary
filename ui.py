@@ -5,12 +5,10 @@ import time
 
 API_URL = "http://localhost:8000"
 
-
 # ✅ Load external CSS from a file
 def load_css():
     with open("assets/styles.css", "r") as f:
         return f.read()
-
 
 # ✅ Set Page Config
 st.set_page_config(
@@ -29,12 +27,31 @@ with col2:
         unsafe_allow_html=True
     )
 
+# ✅ Introduction Section
+st.markdown("""
+    **MoMify** is a powerful tool designed to help you effortlessly generate **Minutes of Meeting (MoM)** from your audio or video recordings.
+""")
+
+with st.expander("What are Minutes of Meeting (MoM)?"):
+    st.markdown("""
+    Minutes of Meeting (MoM) are official written records of discussions, decisions, and action items made during a meeting. They help keep track of key points and ensure accountability among participants.
+    """)
+
+with st.expander("How Does MoMify Work?"):
+    st.markdown("""
+    1️⃣ **Upload an Audio or Video File** (Max: **1GB**) 📤  
+    2️⃣ **Automatic Transcription** – We process the file and convert speech into text 📝  
+    3️⃣ **Summarization** – Key discussion points and action items are extracted 📑  
+    4️⃣ **Download the MoM PDF** – Get your professionally formatted meeting notes 📄  
+
+    Let's get started by uploading your file below!
+    """)
+
 uploaded_file = st.file_uploader(
     "Upload an audio or video file",
     type=["mp3", "wav", "mp4", "m4a", "wma", "avi", "mkv"],
     help="Limit: 1GB per file"
 )
-
 
 def render_stepper(step):
     """Dynamically renders the stepper UI based on the current step using proper HTML rendering"""
@@ -65,7 +82,6 @@ def render_stepper(step):
 
     stepper_html += '</div>'
     return stepper_html, len(step_titles)
-
 
 # ✅ Initialize session state for tracking progress
 if "progress" not in st.session_state:
