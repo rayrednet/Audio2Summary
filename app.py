@@ -45,7 +45,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 # ✅ Function to Send Progress Updates to UI
-async def progress_generator(file_path, font="Arial", color="000000"):
+async def progress_generator(file_path, font="Arial", color="000000", language="en"):
     yield "⏳ Upload successful. Starting processing...\n"
     time.sleep(1)
 
@@ -58,7 +58,7 @@ async def progress_generator(file_path, font="Arial", color="000000"):
     time.sleep(1)
 
     yield "📑 Summarizing transcript...\n"
-    summary = summarize_text(transcription)
+    summary = summarize_text(transcription, language)
     time.sleep(1)
 
     yield "📄 Generating PDF...\n"
@@ -142,7 +142,7 @@ def transcribe_audio(audio_path):
 
 
 ### **🔹 Summarize Transcription into MoM Format**
-def summarize_text(transcription):
+def summarize_text(transcription, language="en"):
     print("\nGenerating Minutes of Meeting...")
 
     transcript_chunks = split_text_into_chunks(transcription)
@@ -156,7 +156,9 @@ def summarize_text(transcription):
         print(f"\n📌 Summarizing Chunk {i + 1}/{len(transcript_chunks)}...")
         messages = [
             SystemMessage(
-                content="You are an AI that converts meeting transcripts into structured Minutes of Meeting (MoM)."),
+                content=f"You are an AI that converts meeting transcripts into structured Minutes of Meeting (MoM). "
+                        f"Generate the MoM in {language}."
+            ),
             HumanMessage(content=f"Summarize this part of a meeting transcript:\n\n{chunk}")
         ]
         summary = llm.invoke(messages)
@@ -164,7 +166,7 @@ def summarize_text(transcription):
 
     print("\n📌 Merging summarized chunks into final MoM...")
     messages = [
-        SystemMessage(content="You are an AI that creates professional Minutes of Meeting."),
+        SystemMessage(content=f"You are an AI that creates professional Minutes of Meeting in {language}."),
         HumanMessage(
             content="Combine these meeting summaries into a structured MoM:\n\n" + "\n\n".join(summarized_chunks) +
                     "\n\nFormat it with:\n"
@@ -175,7 +177,7 @@ def summarize_text(transcription):
                     "5. **Discussion Points**\n"
                     "6. **Action Items**\n"
                     "7. **Next Meeting Date (if applicable)**\n\n"
-                    "Ensure it's concise, clear, and professional.")
+                    "Ensure it's concise, clear, and professional, and formatted in {language}.")
     ]
     final_summary = llm.invoke(messages)
 
@@ -248,6 +250,7 @@ async def upload_file(
         file: UploadFile = File(...),
         font: str = Form("Arial"),
         color: str = Form("000000"),
+        language: str = Form("en")
 ):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
@@ -256,10 +259,11 @@ async def upload_file(
 
     print(f"✅ Received font: {font}")
     print(f"✅ Received color: {color}")
+    print(f"Selected language: {language}")
 
     async def event_stream():
         filename = None
-        async for message in progress_generator(file_path, font=font, color=color):
+        async for message in progress_generator(file_path, font=font, color=color, language=language):
             yield message
             if message.startswith("FILENAME::"):
                 filename = message.replace("FILENAME::", "").strip()

@@ -103,6 +103,20 @@ if st.session_state.show_options:
     # ✅ Allow the user to pick a color for bold text
     selected_color = st.color_picker("Pick a color for bold text", "#000000")
 
+    # ✅ Add a language selection dropdown
+    st.markdown("## 🌎 Select Notes Language")
+
+    language_options = {
+        "English": "en",
+        "Bahasa Indonesia": "id",
+        "Spanish": "es",
+        "French": "fr",
+        "German": "de"
+    }
+
+    selected_language = st.selectbox("Choose the language for the Meeting Minutes", list(language_options.keys()),
+                                     index=0)
+
     # ✅ Upload File Section
     st.markdown("## 📂 Upload Your File")
 
@@ -170,11 +184,13 @@ if st.session_state.show_options:
             files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
             payload = {
                 "font": selected_font,
-                "color": selected_color.lstrip("#")  # Remove '#' for HEX color
+                "color": selected_color.lstrip("#"),
+                "language": language_options[selected_language]
             }
 
             print(f"Sending font: {payload['font']}")
             print(f"Sending color: {payload['color']}")
+            print(f"Sending language: {payload['language']}")
 
             filename = None
 
