@@ -5,7 +5,7 @@ import time
 
 API_URL = "http://localhost:8000"
 
-# ✅ Load external CSS from a file
+# ✅ Load external CSS
 def load_css():
     with open("assets/styles.css", "r") as f:
         return f.read()
@@ -20,7 +20,7 @@ st.set_page_config(
 # ✅ Custom Header with Logo
 col1, col2 = st.columns([1, 10])
 with col1:
-    st.image("assets/logo.png", width=50)  # Load and display the logo
+    st.image("assets/logo.png", width=50)
 with col2:
     st.markdown(
         "<h1 style='color: white; font-family: sans-serif;'>MoMify: Audio to Minutes of Meeting Generator</h1>",
@@ -44,134 +44,186 @@ with st.expander("How Does MoMify Work?"):
     3️⃣ **Summarization** – Key discussion points and action items are extracted 📑  
     4️⃣ **Download the MoM PDF** – Get your professionally formatted meeting notes 📄  
 
-    Let's get started by uploading your file below!
+    ✅ **Customization** (Optional): You can **choose a font and text color** for bold sections.  
+    - **Default Settings:** Font - Arial, Color - Black.
     """)
 
-# ✅ Allow the user to select a font
-font_options = ["Arial", "Courier", "Times"]
-selected_font = st.selectbox("Choose a font for the PDF", font_options, index=0)
+# ✅ Initialize session state to control visibility
+if "show_options" not in st.session_state:
+    st.session_state.show_options = False  # Initially hidden
 
-# ✅ Allow the user to pick a color for bold text
-selected_color = st.color_picker("Pick a color for bold text", "#000000")
+# ✅ "Let's Get Started" Button (Reveals the Next Section)
+if st.button("🚀 Let's Get Started"):
+    st.session_state.show_options = True
 
-uploaded_file = st.file_uploader(
-    "Upload an audio or video file",
-    type=["mp3", "wav", "mp4", "m4a", "wma", "avi", "mkv"],
-    help="Limit: 1GB per file"
-)
+# ✅ Only show customization and upload sections when button is clicked
+if st.session_state.show_options:
+    st.markdown("## 🎨 Customize Your MoM (Optional)")
 
-def render_stepper(step):
-    """Dynamically renders the stepper UI based on the current step using proper HTML rendering"""
-    step_titles = [
-        "📩 Uploading file...",
-        "🔄 Extracting audio...",
-        "📝 Transcribing audio...",
-        "📑 Summarizing transcript...",
-        "📄 Generating PDF...",
-        "✅ Processing Complete!"
-    ]
+    # ✅ Font options with actual styles
+    font_options = {
+        "Arial": "Arial, sans-serif",
+        "Courier": "Courier, monospace",
+        "Times": "Times New Roman, serif"
+    }
 
-    stepper_html = '<div class="stepper">'
+    # ✅ Render the dropdown using Streamlit
+    selected_font = st.selectbox(
+        "Choose a font for the PDF",
+        options=list(font_options.keys()),  # Show available fonts
+        index=0,  # Default to Arial
+    )
 
-    for i, title in enumerate(step_titles):
-        status_class = "inactive"
-        if i < step:
-            status_class = "completed"
-        elif i == step:
-            status_class = "active"
+    # ✅ Apply custom CSS for a **dark-themed dropdown**
+    st.markdown(
+        f"""
+        <style>
+            /* Make the dropdown dark */
+            div[data-baseweb="select"] > div {{
+                background-color: #1E1E1E !important; /* Dark background */
+                color: white !important; /* White text */
+                font-family: {font_options[selected_font]} !important; /* Apply font style */
+            }}
 
-        stepper_html += f'''
-        <div class="step {status_class}">
-            <div class="circle">{i + 1}</div>
-            <div>{title}</div>
-        </div>
-        '''
+            /* Ensure dropdown list matches dark theme */
+            ul[role="listbox"] {{
+                background-color: #1E1E1E !important; /* Darker dropdown */
+                color: white !important;
+            }}
 
-    stepper_html += '</div>'
-    return stepper_html, len(step_titles)
+            /* Ensure selected item is also styled */
+            div[data-baseweb="select"] span {{
+                font-family: {font_options[selected_font]} !important;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-# ✅ Initialize session state for tracking progress
-if "progress" not in st.session_state:
-    st.session_state.progress = 0
+    # ✅ Allow the user to pick a color for bold text
+    selected_color = st.color_picker("Pick a color for bold text", "#000000")
 
-css = load_css()  # Load the external CSS file
-stepper_html, step_count = render_stepper(st.session_state.progress)
+    # ✅ Upload File Section
+    st.markdown("## 📂 Upload Your File")
 
-# ✅ Compute required height dynamically
-height_needed = step_count * 70 + 100  # Adjusted for padding
+    uploaded_file = st.file_uploader(
+        "Upload an audio or video file",
+        type=["mp3", "wav", "mp4", "m4a", "wma", "avi", "mkv"],
+        help="Limit: 1GB per file"
+    )
 
-# ✅ Use `components.html()` instead of `st.empty().html()`
-stepper_container = st.empty()
-with stepper_container:
-    components.html(f"""
-        <style>{css}</style>
-        {stepper_html}
-    """, height=height_needed)
+    # ✅ Progress Stepper
+    def render_stepper(step):
+        """Dynamically renders the stepper UI based on the current step using proper HTML rendering"""
+        step_titles = [
+            "📩 Uploading file...",
+            "🔄 Extracting audio...",
+            "📝 Transcribing audio...",
+            "📑 Summarizing transcript...",
+            "📄 Generating PDF...",
+            "✅ Processing Complete!"
+        ]
 
-if uploaded_file:
-    st.info("File uploaded successfully. Click 'Process File' to generate MoM.")
+        stepper_html = '<div class="stepper">'
+        for i, title in enumerate(step_titles):
+            status_class = "inactive"
+            if i < step:
+                status_class = "completed"
+            elif i == step:
+                status_class = "active"
 
-    if st.button("Process File 🚀"):
-        st.info("Uploading and processing... please wait.")
+            stepper_html += f'''
+            <div class="step {status_class}">
+                <div class="circle">{i + 1}</div>
+                <div>{title}</div>
+            </div>
+            '''
 
-        files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
-        payload = {
-            "font": selected_font,
-            "color": selected_color.lstrip("#")
-        }
+        stepper_html += '</div>'
+        return stepper_html, len(step_titles)
 
-        print (f"Sending font: {payload['font']}")
-        print (f"Sending color: {payload['color']}")
+    # ✅ Initialize session state for tracking progress
+    if "progress" not in st.session_state:
+        st.session_state.progress = 0
 
-        filename = None
+    css = load_css()  # Load the external CSS file
+    stepper_html, step_count = render_stepper(st.session_state.progress)
 
-        with requests.post(f"{API_URL}/upload/", files=files, data=payload, stream=True) as response:
-            if response.status_code == 200:
-                for line in response.iter_lines():
-                    decoded_line = line.decode("utf-8")
+    # ✅ Compute required height dynamically
+    height_needed = step_count * 70 + 100  # Adjusted for padding
 
-                    if "FILENAME::" in decoded_line:
-                        filename = decoded_line.replace("FILENAME::", "").strip()
-                        print(f"🔎 Extracted filename: {filename}")
-                        continue
+    # ✅ Use `components.html()` instead of `st.empty().html()`
+    stepper_container = st.empty()
+    with stepper_container:
+        components.html(f"""
+            <style>{css}</style>
+            {stepper_html}
+        """, height=height_needed)
 
-                    st.write(decoded_line)  # Show processing steps in UI
+    # ✅ Process File Button
+    if uploaded_file:
+        st.info("File uploaded successfully. Click 'Process File' to generate MoM.")
 
-                    for step in range(step_count - 1):
-                        st.session_state.progress = step
-                        stepper_html, _ = render_stepper(st.session_state.progress)
+        if st.button("Process File 🚀"):
+            st.info("Uploading and processing... please wait.")
 
-                        with stepper_container:
-                            components.html(f"""
-                                <style>{css}</style>
-                                {stepper_html}
-                            """, height=height_needed)
+            files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
+            payload = {
+                "font": selected_font,
+                "color": selected_color.lstrip("#")  # Remove '#' for HEX color
+            }
 
-                        time.sleep(2)
+            print(f"Sending font: {payload['font']}")
+            print(f"Sending color: {payload['color']}")
 
-                # ✅ Final step update
-                st.session_state.progress = step_count - 1
-                stepper_html, _ = render_stepper(st.session_state.progress)
+            filename = None
 
-                with stepper_container:
-                    components.html(f"""
-                        <style>{css}</style>
-                        {stepper_html}
-                    """, height=height_needed)
+            with requests.post(f"{API_URL}/upload/", files=files, data=payload, stream=True) as response:
+                if response.status_code == 200:
+                    for line in response.iter_lines():
+                        decoded_line = line.decode("utf-8")
 
-                st.success("🎉 Your Meeting Minutes are ready!")
+                        if "FILENAME::" in decoded_line:
+                            filename = decoded_line.replace("FILENAME::", "").strip()
+                            print(f"🔎 Extracted filename: {filename}")
+                            continue
 
-                if filename:
-                    filename = filename.strip()
-                    print(f"🔎 Filename received in UI: {filename}")
-                    download_url = f"{API_URL}/download/{filename}"
+                        st.write(decoded_line)  # Show processing steps in UI
 
-                    # ✅ Use HTML anchor with 'download' attribute to force direct download
-                    st.markdown(f'<a href="{download_url}" download="{filename}" target="_blank">'
-                                f'📥 **Download PDF**</a>', unsafe_allow_html=True)
+                        for step in range(step_count - 1):
+                            st.session_state.progress = step
+                            stepper_html, _ = render_stepper(st.session_state.progress)
+
+                            with stepper_container:
+                                components.html(f"""
+                                    <style>{css}</style>
+                                    {stepper_html}
+                                """, height=height_needed)
+
+                            time.sleep(2)
+
+                    # ✅ Final step update
+                    st.session_state.progress = step_count - 1
+                    stepper_html, _ = render_stepper(st.session_state.progress)
+
+                    with stepper_container:
+                        components.html(f"""
+                            <style>{css}</style>
+                            {stepper_html}
+                        """, height=height_needed)
+
+                    st.success("🎉 Your Meeting Minutes are ready!")
+
+                    if filename:
+                        filename = filename.strip()
+                        print(f"🔎 Filename received in UI: {filename}")
+                        download_url = f"{API_URL}/download/{filename}"
+
+                        # ✅ Use HTML anchor with 'download' attribute to force direct download
+                        st.markdown(f'<a href="{download_url}" download="{filename}" target="_blank">'
+                                    f'📥 **Download PDF**</a>', unsafe_allow_html=True)
+                    else:
+                        st.error("❌ Error retrieving the file!")
+
                 else:
-                    st.error("❌ Error retrieving the file!")
-
-
-            else:
-                st.error("❌ Something went wrong!")
+                    st.error("❌ Something went wrong!")
