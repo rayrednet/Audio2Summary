@@ -63,11 +63,11 @@ async def progress_generator(file_path):
 
     yield "📄 Generating PDF...\n"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    pdf_path, filename = export_to_pdf(summary, f"Meeting_Minutes_{timestamp}.pdf")
+    filename = export_to_pdf(summary, f"Meeting_Minutes_{timestamp}.pdf")
     time.sleep(1)
 
     yield f"✅ Processing complete! Download: /download/{filename}\n"
-    yield f"FILENAME::{filename}"
+    yield f"FILENAME::{filename}\n"
 
 ### **🔹 Token Counting & Chunk Splitting (For Large Transcripts)**
 def count_tokens(text, model="gpt-4"):
@@ -205,7 +205,7 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf"):
     pdf.output(pdf_path)
 
     print(f"✅ Minutes of Meeting saved to {pdf_path}")
-    return pdf_path, filename
+    return filename
 
 
 ### **🔹 FastAPI Endpoints**
@@ -230,5 +230,17 @@ async def upload_file(file: UploadFile = File(...)):
 
 @app.get("/download/{filename}")
 async def download_file(filename: str):
-    return FileResponse(os.path.join(OUTPUT_DIR, filename), media_type="application/pdf", filename=filename)
+    filepath = os.path.abspath(os.path.join(OUTPUT_DIR, filename))
+    print(f"Trying to serve file: {filepath}")
 
+    if not os.path.exists(filepath):
+        print("❌ File not found!")
+        return {"error": "File not found"}
+
+    # ✅ Force the browser to download the file instead of opening it
+    return FileResponse(
+        path=filepath,
+        media_type="application/pdf",
+        filename=filename,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

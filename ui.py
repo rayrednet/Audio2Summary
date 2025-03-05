@@ -112,8 +112,9 @@ if uploaded_file:
             for line in response.iter_lines():
                 decoded_line = line.decode("utf-8")
 
-                if decoded_line.startswith("FILENAME::"):
-                    filename = decoded_line.replace("FILENAME::", "").strip()  # Extract filename
+                if "FILENAME::" in decoded_line:
+                    filename = decoded_line.replace("FILENAME::", "").strip()  # ✅ Correctly extract filename
+                    print(f"🔎 Extracted filename: {filename}")
                     continue
 
                 st.write(decoded_line)  # Show processing steps in UI
@@ -144,10 +145,16 @@ if uploaded_file:
             st.success("🎉 Your Meeting Minutes are ready!")
 
             if filename:
+                filename = filename.strip()
+                print(f"🔎 Filename received in UI: {filename}")
                 download_url = f"{API_URL}/download/{filename}"
-                st.markdown(f"[📥 Download PDF]({download_url})")
+
+                # ✅ Use HTML anchor with 'download' attribute to force direct download
+                st.markdown(f'<a href="{download_url}" download="{filename}" target="_blank">'
+                            f'📥 **Download PDF**</a>', unsafe_allow_html=True)
             else:
                 st.error("❌ Error retrieving the file!")
+
 
         else:
             st.error("❌ Something went wrong!")
