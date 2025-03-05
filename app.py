@@ -189,23 +189,46 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf"):
     filename = f"Meeting_Minutes_{timestamp}.pdf"
 
     print("\nExporting summary to PDF...")
-    for _ in tqdm(range(100), desc="Saving PDF", unit="%"):
-        time.sleep(0.01)
 
     pdf_path = os.path.join(OUTPUT_DIR, filename)
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
+    # ✅ Set Title Formatting
     pdf.set_font("Arial", "B", 20)
     pdf.cell(200, 10, "MEETING MINUTES", ln=True, align='C')
     pdf.ln(10)
-    pdf.set_font("Arial", "", 12)
-    pdf.multi_cell(0, 10, summary)
-    pdf.output(pdf_path)
 
+    # ✅ Convert **Bold** Markdown to FPDF bold format
+    pdf.set_font("Arial", "", 12)
+
+    # Replace **bold** with actual bold font
+    summary = summary.replace("**", "")
+
+    lines = summary.split("\n")
+    for line in lines:
+        stripped_line = line.strip()
+
+        # ✅ Define section headers that should be bold
+        bold_headers = [
+            "Meeting Title:", "Date & Time:", "Attendees:", "Agenda:",
+            "Discussion Points:", "Action Items:", "Next Meeting Date:"
+        ]
+
+        # ✅ If the line is a header, make it bold
+        if any(stripped_line.startswith(header) for header in bold_headers):
+            pdf.set_font("Arial", "B", 12)  # Bold font
+        else:
+            pdf.set_font("Arial", "", 12)  # Regular font
+
+        pdf.multi_cell(0, 10, line)
+        pdf.ln(2)
+
+    pdf.output(pdf_path)
     print(f"✅ Minutes of Meeting saved to {pdf_path}")
-    return filename
+
+    return filename  # ✅ Return only the filename
 
 
 ### **🔹 FastAPI Endpoints**
