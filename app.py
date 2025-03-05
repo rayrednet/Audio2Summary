@@ -4,7 +4,7 @@ import torch
 import time
 import shutil
 import tiktoken
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import FileResponse, StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -45,7 +45,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 # ✅ Function to Send Progress Updates to UI
-async def progress_generator(file_path):
+async def progress_generator(file_path, font="Arial", color="000000"):
     yield "⏳ Upload successful. Starting processing...\n"
     time.sleep(1)
 
@@ -63,7 +63,8 @@ async def progress_generator(file_path):
 
     yield "📄 Generating PDF...\n"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = export_to_pdf(summary, f"Meeting_Minutes_{timestamp}.pdf")
+
+    filename = export_to_pdf(summary, f"Meeting_Minutes_{timestamp}.pdf", font, color)
     time.sleep(1)
 
     yield f"✅ Processing complete! Download: /download/{filename}\n"
@@ -182,45 +183,55 @@ def summarize_text(transcription):
 
 
 ### **🔹 Export Summary to PDF in MoM Format**
-def export_to_pdf(summary, filename="Meeting_Minutes.pdf"):
+def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="000000"):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"Meeting_Minutes_{timestamp}.pdf"
 
     print("\nExporting summary to PDF...")
+    print("\n📜 Debug: Exporting summary to PDF...")
+    print(f"🎨 Chosen font: {font}")
+    print(f"🎨 Chosen color: {color}")
+
+    # ✅ Convert color from HEX to RGB
+    r, g, b = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
+    print(f"🎨 Converted RGB Color: {r}, {g}, {b}")
 
     pdf_path = os.path.join(OUTPUT_DIR, filename)
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    # ✅ Set Title Formatting
-    pdf.set_font("Arial", "B", 20)
+    # ✅ Set Title Formatting (Always Bold and Colored)
+    pdf.set_font(font, "B", 20)
+    pdf.set_text_color(r, g, b)  # Apply user-selected color
     pdf.cell(200, 10, "MEETING MINUTES", ln=True, align='C')
     pdf.ln(10)
 
-    # ✅ Convert **Bold** Markdown to FPDF bold format
-    pdf.set_font("Arial", "", 12)
-
-    # Replace **bold** with actual bold font
+    # ✅ Replace **bold** markers from Markdown
     summary = summary.replace("**", "")
+
+    # ✅ Define section headers that should be bold and colored
+    bold_headers = [
+        "Meeting Title:", "Date & Time:", "Attendees:", "Agenda:",
+        "Discussion Points:", "Action Items:", "Next Meeting Date:"
+    ]
+
+    # ✅ Debug: Print Summary Before Processing
+    print("\n📜 Processed Summary Content:\n", summary)
 
     lines = summary.split("\n")
     for line in lines:
         stripped_line = line.strip()
 
-        # ✅ Define section headers that should be bold
-        bold_headers = [
-            "Meeting Title:", "Date & Time:", "Attendees:", "Agenda:",
-            "Discussion Points:", "Action Items:", "Next Meeting Date:"
-        ]
-
-        # ✅ If the line is a header, make it bold
+        # ✅ If the line is a bold header, apply bold font & selected color
         if any(stripped_line.startswith(header) for header in bold_headers):
-            pdf.set_font("Arial", "B", 12)  # Bold font
+            pdf.set_font(font, "B", 12)  # Apply Bold font
+            pdf.set_text_color(r, g, b)  # Apply user-selected color
         else:
-            pdf.set_font("Arial", "", 12)  # Regular font
+            pdf.set_font(font, "", 12)  # Regular font
+            pdf.set_text_color(0, 0, 0)  # Reset to default black for normal text
 
         pdf.multi_cell(0, 10, line)
         pdf.ln(2)
@@ -228,22 +239,29 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf"):
     pdf.output(pdf_path)
     print(f"✅ Minutes of Meeting saved to {pdf_path}")
 
-    return filename  # ✅ Return only the filename
+    return filename
 
 
 ### **🔹 FastAPI Endpoints**
 @app.post("/upload/")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(
+        file: UploadFile = File(...),
+        font: str = Form("Arial"),
+        color: str = Form("000000"),
+):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    print(f"✅ Received font: {font}")
+    print(f"✅ Received color: {color}")
+
     async def event_stream():
         filename = None
-        async for message in progress_generator(file_path):
+        async for message in progress_generator(file_path, font=font, color=color):
             yield message
-            if message.startswith("FILENAME::"):  # Extract filename from progress messages
+            if message.startswith("FILENAME::"):
                 filename = message.replace("FILENAME::", "").strip()
 
         if filename:

@@ -47,6 +47,13 @@ with st.expander("How Does MoMify Work?"):
     Let's get started by uploading your file below!
     """)
 
+# ✅ Allow the user to select a font
+font_options = ["Arial", "Courier", "Times"]
+selected_font = st.selectbox("Choose a font for the PDF", font_options, index=0)
+
+# ✅ Allow the user to pick a color for bold text
+selected_color = st.color_picker("Pick a color for bold text", "#000000")
+
 uploaded_file = st.file_uploader(
     "Upload an audio or video file",
     type=["mp3", "wav", "mp4", "m4a", "wma", "avi", "mkv"],
@@ -56,7 +63,7 @@ uploaded_file = st.file_uploader(
 def render_stepper(step):
     """Dynamically renders the stepper UI based on the current step using proper HTML rendering"""
     step_titles = [
-        "1️⃣ Uploading file...",
+        "📩 Uploading file...",
         "🔄 Extracting audio...",
         "📝 Transcribing audio...",
         "📑 Summarizing transcript...",
@@ -102,59 +109,69 @@ with stepper_container:
     """, height=height_needed)
 
 if uploaded_file:
-    st.info("Uploading and processing... please wait.")
+    st.info("File uploaded successfully. Click 'Process File' to generate MoM.")
 
-    files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
-    filename = None  # To store the correct filename
+    if st.button("Process File 🚀"):
+        st.info("Uploading and processing... please wait.")
 
-    with requests.post(f"{API_URL}/upload/", files=files, stream=True) as response:
-        if response.status_code == 200:
-            for line in response.iter_lines():
-                decoded_line = line.decode("utf-8")
+        files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
+        payload = {
+            "font": selected_font,
+            "color": selected_color.lstrip("#")
+        }
 
-                if "FILENAME::" in decoded_line:
-                    filename = decoded_line.replace("FILENAME::", "").strip()  # ✅ Correctly extract filename
-                    print(f"🔎 Extracted filename: {filename}")
-                    continue
+        print (f"Sending font: {payload['font']}")
+        print (f"Sending color: {payload['color']}")
 
-                st.write(decoded_line)  # Show processing steps in UI
+        filename = None
 
-                for step in range(step_count - 1):
-                    st.session_state.progress = step
-                    stepper_html, _ = render_stepper(st.session_state.progress)
+        with requests.post(f"{API_URL}/upload/", files=files, data=payload, stream=True) as response:
+            if response.status_code == 200:
+                for line in response.iter_lines():
+                    decoded_line = line.decode("utf-8")
 
-                    # ✅ Use stepper_container to dynamically update the UI
-                    with stepper_container:
-                        components.html(f"""
-                            <style>{css}</style>
-                            {stepper_html}
-                        """, height=height_needed)
+                    if "FILENAME::" in decoded_line:
+                        filename = decoded_line.replace("FILENAME::", "").strip()
+                        print(f"🔎 Extracted filename: {filename}")
+                        continue
 
-                    time.sleep(2)
+                    st.write(decoded_line)  # Show processing steps in UI
 
-            # ✅ Final step update
-            st.session_state.progress = step_count - 1
-            stepper_html, _ = render_stepper(st.session_state.progress)
+                    for step in range(step_count - 1):
+                        st.session_state.progress = step
+                        stepper_html, _ = render_stepper(st.session_state.progress)
 
-            with stepper_container:
-                components.html(f"""
-                    <style>{css}</style>
-                    {stepper_html}
-                """, height=height_needed)
+                        with stepper_container:
+                            components.html(f"""
+                                <style>{css}</style>
+                                {stepper_html}
+                            """, height=height_needed)
 
-            st.success("🎉 Your Meeting Minutes are ready!")
+                        time.sleep(2)
 
-            if filename:
-                filename = filename.strip()
-                print(f"🔎 Filename received in UI: {filename}")
-                download_url = f"{API_URL}/download/{filename}"
+                # ✅ Final step update
+                st.session_state.progress = step_count - 1
+                stepper_html, _ = render_stepper(st.session_state.progress)
 
-                # ✅ Use HTML anchor with 'download' attribute to force direct download
-                st.markdown(f'<a href="{download_url}" download="{filename}" target="_blank">'
-                            f'📥 **Download PDF**</a>', unsafe_allow_html=True)
+                with stepper_container:
+                    components.html(f"""
+                        <style>{css}</style>
+                        {stepper_html}
+                    """, height=height_needed)
+
+                st.success("🎉 Your Meeting Minutes are ready!")
+
+                if filename:
+                    filename = filename.strip()
+                    print(f"🔎 Filename received in UI: {filename}")
+                    download_url = f"{API_URL}/download/{filename}"
+
+                    # ✅ Use HTML anchor with 'download' attribute to force direct download
+                    st.markdown(f'<a href="{download_url}" download="{filename}" target="_blank">'
+                                f'📥 **Download PDF**</a>', unsafe_allow_html=True)
+                else:
+                    st.error("❌ Error retrieving the file!")
+
+
             else:
-                st.error("❌ Error retrieving the file!")
-
-
-        else:
-            st.error("❌ Something went wrong!")
+                st.error("❌ Something went wrong!")
