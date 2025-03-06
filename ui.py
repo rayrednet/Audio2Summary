@@ -2,6 +2,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import requests
 import time
+import os
+from ui_components.introduction import show_introduction
 
 API_URL = "http://localhost:8000"
 
@@ -17,36 +19,8 @@ st.set_page_config(
     layout="centered",
 )
 
-# ✅ Custom Header with Logo
-col1, col2 = st.columns([1, 10])
-with col1:
-    st.image("assets/logo.png", width=50)
-with col2:
-    st.markdown(
-        "<h1 style='color: white; font-family: sans-serif;'>MoMify: Audio to Minutes of Meeting Generator</h1>",
-        unsafe_allow_html=True
-    )
-
-# ✅ Introduction Section
-st.markdown("""
-    **MoMify** is a powerful tool designed to help you effortlessly generate **Minutes of Meeting (MoM)** from your audio or video recordings.
-""")
-
-with st.expander("What are Minutes of Meeting (MoM)?"):
-    st.markdown("""
-    Minutes of Meeting (MoM) are official written records of discussions, decisions, and action items made during a meeting. They help keep track of key points and ensure accountability among participants.
-    """)
-
-with st.expander("How Does MoMify Work?"):
-    st.markdown("""
-    1️⃣ **Upload an Audio or Video File** (Max: **1GB**) 📤  
-    2️⃣ **Automatic Transcription** – We process the file and convert speech into text 📝  
-    3️⃣ **Summarization** – Key discussion points and action items are extracted 📑  
-    4️⃣ **Download the MoM PDF** – Get your professionally formatted meeting notes 📄  
-
-    ✅ **Customization** (Optional): You can **choose a font and text color** for bold sections.  
-    - **Default Settings:** Font - Arial, Color - Black.
-    """)
+# ✅ Display the introduction from `introduction.py`
+show_introduction()
 
 # ✅ Initialize session state to control visibility
 if "show_options" not in st.session_state:
