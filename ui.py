@@ -45,15 +45,16 @@ if st.session_state.show_options:
     selected_font = st.selectbox(
         "Choose a font for the PDF",
         options=list(font_options.keys()),  # Show available fonts
-        index=0,  # Default to Arial
+        index=0,  # Default to
+        key="font_selector",
     )
 
-    # ✅ Apply custom CSS for a **dark-themed dropdown**
+    # ✅ Inject Custom CSS Dynamically (Only affects font dropdown)
     st.markdown(
         f"""
         <style>
-            /* Make the dropdown dark */
-            div[data-baseweb="select"] > div {{
+            /* Apply font style ONLY to the font selection dropdown */
+            div[data-baseweb="select"]:nth-of-type(1) > div {{
                 background-color: #1E1E1E !important; /* Dark background */
                 color: white !important; /* White text */
                 font-family: {font_options[selected_font]} !important; /* Apply font style */
@@ -66,7 +67,7 @@ if st.session_state.show_options:
             }}
 
             /* Ensure selected item is also styled */
-            div[data-baseweb="select"] span {{
+            div[data-baseweb="select"]:nth-of-type(1) span {{
                 font-family: {font_options[selected_font]} !important;
             }}
         </style>

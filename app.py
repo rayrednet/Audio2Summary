@@ -162,7 +162,18 @@ def summarize_text(transcription, language="en"):
                         f"Do NOT add numbers before section headers."
                         f"Use only the exact section headers from the list below. Do NOT change them."
             ),
-            HumanMessage(content=f"Summarize this part of a meeting transcript **in {language}**:\n\n{chunk}")
+            HumanMessage(content=
+                         f"""Summarize this part of a meeting transcript **in {language}**:
+
+                                     1️⃣ **Agenda:** Extract the main topics discussed.
+                                     2️⃣ **Discussion Points:** Summarize the key ideas, arguments, and perspectives shared.
+                                     3️⃣ **Action Items:** Identify decisions made and tasks assigned.
+                                     4️⃣ **Conclusion:** Summarize the final thoughts and meeting takeaways.
+
+                                     Transcript:  
+                                     {chunk}
+                                     """
+                         )
         ]
         summary = llm.invoke(messages)
         summarized_chunks.append(summary.content)
@@ -171,22 +182,22 @@ def summarize_text(transcription, language="en"):
             "en": [
                 "**Meeting Title:**", "**Date & Time:**", "**Attendees:**",
                 "**Agenda:**", "**Discussion Points:**", "**Action Items:**",
-                "**Next Meeting Date:**"
+                "**Conclusion:**", "**Next Meeting Date:**"
             ],
             "id": [
                 "**Judul Rapat:**", "**Tanggal & Waktu:**", "**Peserta:**",
                 "**Agenda:**", "**Poin Diskusi:**", "**Tindakan:**",
-                "**Tanggal Rapat Berikutnya:**"
+                "**Kesimpulan:**", "**Tanggal Rapat Berikutnya:**"
             ],
             "ms": [
                 "**Tajuk Mesyuarat:**", "**Tarikh & Masa:**", "**Peserta:**",
                 "**Agenda:**", "**Perkara Dibincangkan:**", "**Tindakan:**",
-                "**Tarikh Mesyuarat Seterusnya:**"
+                "**Kesimpulan:**", "**Tarikh Mesyuarat Seterusnya:**"
             ],
             "tl": [
                 "**Pamagat ng Pulong:**", "**Petsa at Oras:**", "**Mga Dumalo:**",
                 "**Adyenda:**", "**Mga Punto ng Talakayan:**", "**Mga Hakbang na Dapat Gawin:**",
-                "**Susunod na Petsa ng Pagpupulong:**"
+                "**Konklusyon:**", "**Susunod na Petsa ng Pagpupulong:**"
             ]
         }
 
@@ -201,9 +212,14 @@ def summarize_text(transcription, language="en"):
 
     print("\n📌 Merging summarized chunks into final MoM...")
     messages = [
-        SystemMessage(content=f"You are an AI that creates professional Minutes of Meeting in {language}."
-                            f"Use the exact section headers provided below."
-                            f"Do NOT modify them or add numbering"),
+        SystemMessage(
+            content=f"""You are an AI that converts meeting transcripts into structured Minutes of Meeting (MoM).
+            - Generate the MoM **entirely in {language}**. Do not mix languages.
+            - Do **NOT** add numbers or bullet points before section headers.
+            - Use **only** the exact section headers from the list below. Do **NOT** modify them.
+            - Ensure that **each section header appears on a new line, followed by its content**.
+            - Leave **one empty line** between each section.
+            """),
         HumanMessage(
             content="Combine these meeting summaries into a structured MoM:\n\n" + "\n\n".join(summarized_chunks) +
                     "\n\nFormat it with these section headers WITHOUT numbering:\n"
@@ -302,16 +318,17 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="
     # ✅ Define section headers that should be bold and colored
     bold_headers_dict = {
         "en": ["Meeting Title:", "Date & Time:", "Attendees:", "Agenda:",
-               "Discussion Points:", "Action Items:", "Next Meeting Date:"],
+               "Discussion Points:", "Action Items:", "Conclusion:", "Next Meeting Date:"],
 
         "id": ["Judul Rapat:", "Tanggal & Waktu:", "Peserta:", "Agenda:",
-               "Poin Diskusi:", "Tindakan:", "Tanggal Rapat Berikutnya:"],
+               "Poin Diskusi:", "Tindakan:", "Kesimpulan:", "Tanggal Rapat Berikutnya:"],
 
         "ms": ["Tajuk Mesyuarat:", "Tarikh & Masa:", "Peserta:", "Agenda:",
-               "Perkara Dibincangkan:", "Tindakan:", "Tarikh Mesyuarat Seterusnya:"],
+               "Perkara Dibincangkan:", "Tindakan:", "Kesimpulan:", "Tarikh Mesyuarat Seterusnya:"],
 
         "tl": ["Pamagat ng Pulong:", "Petsa at Oras:", "Mga Dumalo:", "Adyenda:",
-               "Mga Punto ng Talakayan:", "Mga Hakbang na Dapat Gawin:", "Susunod na Petsa ng Pagpupulong:"]
+               "Mga Punto ng Talakayan:", "Mga Hakbang na Dapat Gawin:", "Konklusyon:",
+               "Susunod na Petsa ng Pagpupulong:"]
     }
 
     # ✅ Debugging: Print what language was actually used
