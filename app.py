@@ -268,15 +268,18 @@ class PDFWithFooter(FPDF):
 def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="000000", language="en"):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+    # Format timestamp
+    formatted_date = datetime.now().strftime("%B-%d-%Y_%H-%M-%S")
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"Meeting_Minutes_{timestamp}.pdf"
+    filename = f"Meeting_Minutes_{formatted_date.upper()}_{language.upper()}.pdf"
 
     print("\nExporting summary to PDF...")
     print("\n📜 Debug: Exporting summary to PDF...")
     print(f"🎨 Chosen font: {font}")
     print(f"🎨 Chosen color: {color}")
     print(f" 🌎 Language selected: {language}")
-
+    print(f"📜 File name: {filename}")
 
     # ✅ Convert color from HEX to RGB
     r, g, b = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
