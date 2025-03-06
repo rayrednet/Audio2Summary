@@ -15,7 +15,6 @@ from langchain.schema import SystemMessage, HumanMessage
 from fpdf import FPDF
 from pydub import AudioSegment
 from dotenv import load_dotenv
-from tqdm import tqdm
 from datetime import datetime
 app = FastAPI()
 
@@ -46,6 +45,8 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ✅ Function to Send Progress Updates to UI
 async def progress_generator(file_path, font="Arial", color="000000", language="en"):
+    print(f"✅ [progress_generator] Received language: {language}")
+
     yield "⏳ Upload successful. Starting processing...\n"
     time.sleep(1)
 
@@ -64,7 +65,7 @@ async def progress_generator(file_path, font="Arial", color="000000", language="
     yield "📄 Generating PDF...\n"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    filename = export_to_pdf(summary, f"Meeting_Minutes_{timestamp}.pdf", font, color)
+    filename = export_to_pdf(summary, f"Meeting_Minutes_{timestamp}.pdf", font, color, language)
     time.sleep(1)
 
     yield f"✅ Processing complete! Download: /download/{filename}\n"
@@ -157,35 +158,114 @@ def summarize_text(transcription, language="en"):
         messages = [
             SystemMessage(
                 content=f"You are an AI that converts meeting transcripts into structured Minutes of Meeting (MoM). "
-                        f"Generate the MoM in {language}."
+                        f"Generate the MoM **entirely in {language}**. Do not mix languages."
+                        f"Do NOT add numbers before section headers."
+                        f"Use only the exact section headers from the list below. Do NOT change them."
             ),
-            HumanMessage(content=f"Summarize this part of a meeting transcript:\n\n{chunk}")
+            HumanMessage(content=f"Summarize this part of a meeting transcript **in {language}**:\n\n{chunk}")
         ]
         summary = llm.invoke(messages)
         summarized_chunks.append(summary.content)
 
+        section_headers = {
+            "en": [
+                "**Meeting Title:**", "**Date & Time:**", "**Attendees:**",
+                "**Agenda:**", "**Discussion Points:**", "**Action Items:**",
+                "**Next Meeting Date:**"
+            ],
+            "id": [
+                "**Judul Rapat:**", "**Tanggal & Waktu:**", "**Peserta:**",
+                "**Agenda:**", "**Poin Diskusi:**", "**Tindakan:**",
+                "**Tanggal Rapat Berikutnya:**"
+            ],
+            "ms": [
+                "**Tajuk Mesyuarat:**", "**Tarikh & Masa:**", "**Peserta:**",
+                "**Agenda:**", "**Perkara Dibincangkan:**", "**Tindakan:**",
+                "**Tarikh Mesyuarat Seterusnya:**"
+            ],
+            "tl": [
+                "**Pamagat ng Pulong:**", "**Petsa at Oras:**", "**Mga Dumalo:**",
+                "**Adyenda:**", "**Mga Punto ng Talakayan:**", "**Mga Hakbang na Dapat Gawin:**",
+                "**Susunod na Petsa ng Pagpupulong:**"
+            ]
+        }
+
+    date_not_mentioned = {
+        "en": "Not mentioned",
+        "id": "Tidak disebutkan",
+        "ms": "Tidak dinyatakan",
+        "tl": "Hindi nabanggit"
+    }
+
+    headers = section_headers.get(language, section_headers["en"])
+
     print("\n📌 Merging summarized chunks into final MoM...")
     messages = [
-        SystemMessage(content=f"You are an AI that creates professional Minutes of Meeting in {language}."),
+        SystemMessage(content=f"You are an AI that creates professional Minutes of Meeting in {language}."
+                            f"Use the exact section headers provided below."
+                            f"Do NOT modify them or add numbering"),
         HumanMessage(
             content="Combine these meeting summaries into a structured MoM:\n\n" + "\n\n".join(summarized_chunks) +
-                    "\n\nFormat it with:\n"
-                    "1. **Meeting Title**\n"
-                    "2. **Date & Time**\n"
-                    "3. **Attendees** (List of Participants)\n"
-                    "4. **Agenda**\n"
-                    "5. **Discussion Points**\n"
-                    "6. **Action Items**\n"
-                    "7. **Next Meeting Date (if applicable)**\n\n"
-                    "Ensure it's concise, clear, and professional, and formatted in {language}.")
+                    "\n\nFormat it with these section headers WITHOUT numbering:\n"
+                    + "\n".join(headers) +
+                    "\n\nRules:\n"
+                    f"- If '{headers[1]}' (Date & Time) is missing, write **{date_not_mentioned[language]}**.\n"
+                    f"- If '{headers[-1]}' (Next Meeting Date) is missing, write **{date_not_mentioned[language]}**.\n"
+                    "- Ensure professional formatting and consistent spacing."
+        )
     ]
     final_summary = llm.invoke(messages)
 
     return final_summary.content
 
+class PDFWithFooter(FPDF):
+    def footer(self):
+        self.set_y(-15)  # Position footer 15mm from the bottom
+        self.set_font("Arial", "I", 10)
+        self.set_text_color(150, 150, 150)  # Light gray text
+
+        # Format timestamp in a human-readable format
+        timestamp = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+        footer_text = f"Generated by MoMify | {timestamp}"
+
+        # Logo settings
+        logo_path = "assets/logo.png"
+        logo_width = 6  # Adjust for better alignment
+        logo_height = 6  # Adjust for better alignment
+
+        try:
+            # Get page width for centering
+            page_width = self.w
+            text_width = self.get_string_width(footer_text)
+            total_width = text_width + logo_width + 5  # Space between logo and text
+
+            # Calculate X position for centering
+            x_position = (page_width - total_width) / 2
+            y_position = self.get_y() + 1  # Adjust text baseline
+
+            # Print debug info
+            print(f"📌 Footer Debug Info:")
+            print(f"   - Page Width: {page_width}")
+            print(f"   - Text Width: {text_width}")
+            print(f"   - Logo Width: {logo_width}")
+            print(f"   - Total Width: {total_width}")
+            print(f"   - X Position: {x_position}")
+            print(f"   - Y Position (before): {self.get_y()}")
+            print(f"   - Y Position (after adj.): {y_position}")
+
+            # Place logo
+            self.image(logo_path, x=x_position, y=y_position - 1, w=logo_width, h=logo_height)
+
+            # Place text
+            self.set_xy(x_position + logo_width + 3, y_position)  # Fine-tune text positioning
+            self.cell(0, 6, footer_text, align="L")
+
+        except Exception as e:
+            print(f"⚠️ Error in footer rendering: {e}")
+            print("⚠️ Warning: MoMify logo not found at 'assets/logo.png'!")
 
 ### **🔹 Export Summary to PDF in MoM Format**
-def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="000000"):
+def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="000000", language="en"):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -195,13 +275,15 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="
     print("\n📜 Debug: Exporting summary to PDF...")
     print(f"🎨 Chosen font: {font}")
     print(f"🎨 Chosen color: {color}")
+    print(f" 🌎 Language selected: {language}")
+
 
     # ✅ Convert color from HEX to RGB
     r, g, b = tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
     print(f"🎨 Converted RGB Color: {r}, {g}, {b}")
 
     pdf_path = os.path.join(OUTPUT_DIR, filename)
-    pdf = FPDF()
+    pdf = PDFWithFooter()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
@@ -215,10 +297,28 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="
     summary = summary.replace("**", "")
 
     # ✅ Define section headers that should be bold and colored
-    bold_headers = [
-        "Meeting Title:", "Date & Time:", "Attendees:", "Agenda:",
-        "Discussion Points:", "Action Items:", "Next Meeting Date:"
-    ]
+    bold_headers_dict = {
+        "en": ["Meeting Title:", "Date & Time:", "Attendees:", "Agenda:",
+               "Discussion Points:", "Action Items:", "Next Meeting Date:"],
+
+        "id": ["Judul Rapat:", "Tanggal & Waktu:", "Peserta:", "Agenda:",
+               "Poin Diskusi:", "Tindakan:", "Tanggal Rapat Berikutnya:"],
+
+        "ms": ["Tajuk Mesyuarat:", "Tarikh & Masa:", "Peserta:", "Agenda:",
+               "Perkara Dibincangkan:", "Tindakan:", "Tarikh Mesyuarat Seterusnya:"],
+
+        "tl": ["Pamagat ng Pulong:", "Petsa at Oras:", "Mga Dumalo:", "Adyenda:",
+               "Mga Punto ng Talakayan:", "Mga Hakbang na Dapat Gawin:", "Susunod na Petsa ng Pagpupulong:"]
+    }
+
+    # ✅ Debugging: Print what language was actually used
+    if language not in bold_headers_dict:
+        print(f"⚠️ Warning: Language '{language}' not found, defaulting to 'en'.")
+        language = "en"
+
+    bold_headers = bold_headers_dict[language]
+    print(f"📌 Using bold headers for language: {language}")
+    print(f"🔎 Expected bold headers: {bold_headers}")
 
     # ✅ Debug: Print Summary Before Processing
     print("\n📜 Processed Summary Content:\n", summary)
@@ -229,6 +329,7 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="
 
         # ✅ If the line is a bold header, apply bold font & selected color
         if any(stripped_line.startswith(header) for header in bold_headers):
+            print(f"✅ Applying bold color to: {stripped_line}")
             pdf.set_font(font, "B", 12)  # Apply Bold font
             pdf.set_text_color(r, g, b)  # Apply user-selected color
         else:
@@ -259,7 +360,7 @@ async def upload_file(
 
     print(f"✅ Received font: {font}")
     print(f"✅ Received color: {color}")
-    print(f"Selected language: {language}")
+    print(f"✅ Received language: {language}")
 
     async def event_stream():
         filename = None
@@ -269,7 +370,7 @@ async def upload_file(
                 filename = message.replace("FILENAME::", "").strip()
 
         if filename:
-            yield f"DOWNLOAD::{filename}"  # Send download filename as the final message
+            yield f"DOWNLOAD::{filename}"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

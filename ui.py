@@ -109,9 +109,8 @@ if st.session_state.show_options:
     language_options = {
         "English": "en",
         "Bahasa Indonesia": "id",
-        "Spanish": "es",
-        "French": "fr",
-        "German": "de"
+        "Malay":"ms",
+        "Tagalog":"tl"
     }
 
     selected_language = st.selectbox("Choose the language for the Meeting Minutes", list(language_options.keys()),
