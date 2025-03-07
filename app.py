@@ -165,10 +165,11 @@ def summarize_text(transcription, language="en"):
             HumanMessage(content=
                          f"""Summarize this part of a meeting transcript **in {language}**:
 
-                                     1️⃣ **Agenda:** Extract the main topics discussed.
-                                     2️⃣ **Discussion Points:** Summarize the key ideas, arguments, and perspectives shared.
-                                     3️⃣ **Action Items:** Identify decisions made and tasks assigned.
-                                     4️⃣ **Conclusion:** Summarize the final thoughts and meeting takeaways.
+                                    1️⃣ **Agenda:** Extract the main topics discussed. **Format them as bullet points (`-`).**
+                                    2️⃣ **Attendees:** List all attendees using bullet points (`-`). If roles are mentioned, include them in parentheses.
+                                    3️⃣ **Discussion Points:** Summarize the key ideas, arguments, and perspectives shared.
+                                    4️⃣ **Action Items:** List key tasks assigned in bullet points (`-`).
+                                    5️⃣ **Conclusion:** Summarize the final thoughts and meeting takeaways.
 
                                      Transcript:  
                                      {chunk}
@@ -227,6 +228,7 @@ def summarize_text(transcription, language="en"):
                     "\n\nRules:\n"
                     f"- If '{headers[1]}' (Date & Time) is missing, write **{date_not_mentioned[language]}**.\n"
                     f"- If '{headers[-1]}' (Next Meeting Date) is missing, write **{date_not_mentioned[language]}**.\n"
+                    "- **Use bullet points (`-`) for Attendees, Agenda, and Action Items.**\n"
                     "- Ensure professional formatting and consistent spacing."
         )
     ]
@@ -306,11 +308,24 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
+    # ✅ Register Poppins font (if not already registered)
+    pdf.add_font("Poppins", "", "assets/fonts/Poppins-Regular.ttf", uni=True)
+    pdf.add_font("Poppins", "B", "assets/fonts/Poppins-Bold.ttf", uni=True)
+
+    pdf.set_font("Poppins", "", 12)  # Normal text
+    pdf.set_font("Poppins", "B", 14)  # Bold text
+
     # ✅ Set Title Formatting (Always Bold and Colored)
     pdf.set_font(font, "B", 20)
     pdf.set_text_color(r, g, b)  # Apply user-selected color
     pdf.cell(200, 10, "MEETING MINUTES", ln=True, align='C')
-    pdf.ln(10)
+
+    # ✅ Draw a colored line below the title
+    pdf.ln(2)  # Small space before the line
+    pdf.set_draw_color(r, g, b)  # Use the user-selected color
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())  # Draw a horizontal line across the page
+
+    pdf.ln(8)  # Space after the line before the content
 
     # ✅ Replace **bold** markers from Markdown
     summary = summary.replace("**", "")
@@ -350,7 +365,7 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="
         # ✅ If the line is a bold header, apply bold font & selected color
         if any(stripped_line.startswith(header) for header in bold_headers):
             print(f"✅ Applying bold color to: {stripped_line}")
-            pdf.set_font(font, "B", 12)  # Apply Bold font
+            pdf.set_font(font, "B", 14)  # Apply Bold font
             pdf.set_text_color(r, g, b)  # Apply user-selected color
         else:
             pdf.set_font(font, "", 12)  # Regular font
