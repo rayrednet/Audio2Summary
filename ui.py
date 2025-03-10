@@ -275,24 +275,45 @@ if st.session_state.show_options:
                     filename = filename.strip()
                     download_url = f"{API_URL}/download/{filename}"
 
-                    # ✅ Centered Download Button
+                    # ✅ Centered Download Button (Styled like Process File Now)
+                    st.markdown(
+                        """
+                        <style>
+                        .styled-button {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            background-color: #1E1E1E; /* Match Process File Now button */
+                            color: white;
+                            font-size: 16px;
+                            padding: 12px 24px;
+                            border: 1px solid #ffffff40;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            text-decoration: none;
+                            transition: background 0.3s ease-in-out, transform 0.1s ease-in-out, color 0.3s ease-in-out;
+                        }
+                        .styled-button:hover {
+                            background-color: #FF957F; /* Same hover effect */
+                            color: white !important; /* Ensure text stays white */
+                            transform: scale(1.05);
+                        }
+                        .styled-button:active {
+                            transform: scale(0.98); /* Small press effect */
+                        }
+                        </style>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
                     st.markdown(f"""
-                       <div style="display: flex; justify-content: center; margin-top: 20px;">
-                           <a href="{download_url}" download="{filename}" target="_blank"
-                               style="
-                                   background-color: #4CAF50; 
-                                   color: white; 
-                                   font-size: 16px; 
-                                   padding: 12px 24px; 
-                                   border: none; 
-                                   border-radius: 8px; 
-                                   cursor: pointer; 
-                                   text-decoration: none;
-                                   display: inline-block;">
-                               📥 Download PDF
-                           </a>
-                       </div>
-                       """, unsafe_allow_html=True)
+                        <div style="display: flex; justify-content: center; margin-top: 20px;">
+                            <a href="{download_url}" download="{filename}" target="_blank" class="styled-button">
+                                📥 Download PDF
+                            </a>
+                        </div>
+                    """, unsafe_allow_html=True)
+
                 else:
                     notification_placeholder.error("❌ Error retrieving the file!")
 
