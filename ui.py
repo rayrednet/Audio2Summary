@@ -24,11 +24,23 @@ show_introduction()
 
 # ✅ Initialize session state to control visibility
 if "show_options" not in st.session_state:
-    st.session_state.show_options = False  # Initially hidden
+    st.session_state.show_options = False
+
+# ✅ JavaScript to scroll down on button click
+scroll_script = """
+<script>
+    function scrollDown() {
+        window.scrollBy({top: window.innerHeight, behavior: 'smooth'});
+    }
+</script>
+"""
+
+st.markdown(scroll_script, unsafe_allow_html=True)
 
 # ✅ "Let's Get Started" Button (Reveals the Next Section)
 if st.button("🚀 Let's Get Started"):
     st.session_state.show_options = True
+    st.markdown("<script>scrollDown();</script>", unsafe_allow_html=True)
 
 # ✅ Only show customization and upload sections when button is clicked
 if st.session_state.show_options:
@@ -46,7 +58,7 @@ if st.session_state.show_options:
     # ✅ Render the dropdown using Streamlit
     selected_font = st.selectbox(
         "Choose a font for the PDF",
-        options=list(font_options.keys()),  # Show available fonts
+        options=list(font_options.keys()),
         index=0,  # Default to
         key="font_selector",
     )
@@ -106,6 +118,7 @@ if st.session_state.show_options:
         help="Limit: 1GB per file"
     )
 
+    file_type = uploaded_file.type if uploaded_file else "No file uploaded"
 
     def render_stepper(step):
         """Dynamically renders the stepper UI based on the current step using proper HTML rendering"""
@@ -115,7 +128,6 @@ if st.session_state.show_options:
             "📝 Transcribing audio...",
             "📑 Summarizing transcript...",
             "📄 Generating PDF...",
-            "✅ Processing Complete!"
         ]
 
         stepper_html = '<div class="stepper">'
@@ -128,8 +140,11 @@ if st.session_state.show_options:
                 status_class = "active"  # ✅ The current step being processed is highlighted
 
             # ✅ Apply `final-step` only when progress reaches the last step
+            if i <= step:  # Mark all steps up to the current one as completed
+                status_class = "completed"
+
             if i == len(step_titles) - 1 and step == len(step_titles) - 1:
-                status_class = "final-step"
+                status_class = "final-step completed"  # Ensure last step gets both classes
 
             stepper_html += f'''
             <div class="step {status_class}">
@@ -153,20 +168,53 @@ if st.session_state.show_options:
     # ✅ Compute required height dynamically
     height_needed = step_count * 70 + 100  # Adjusted for padding
 
-    # ✅ Create placeholders to maintain correct UI order
-    button_placeholder = st.empty()  # Button placeholder (at the top)
-    notification_placeholder = st.empty()  # Notification placeholder (below button)
-    stepper_container = st.empty()  # Stepper placeholder (below notification)
-
-    # ✅ Move "Process File" Button ABOVE the stepper
+    # ✅ If a file is uploaded, ensure button appears BEFORE the summary
     if uploaded_file:
-        # ✅ Render the button inside its placeholder
-        process_button = button_placeholder.button("🚀 Process File Now")  # Button first
 
-        # ✅ If button is clicked, show notification & process file
+        # ✅ Center "Process File Now" button using CSS
+        st.markdown(
+            """
+            <style>
+            .centered-button-container {
+                display: flex;
+                justify-content: center;
+                margin-top: 20px;
+            }
+            .centered-button-container button {
+                background-color: #4f46e5;
+                color: white;
+                font-size: 16px;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                text-align: center;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # ✅ Ensure the Button is Rendered First (not inside `with`)
+        process_button = st.button("🚀 Process File Now", key="process_file_now", help="Click to start processing")
+
+        # ✅ Ensure Summary Section Appears Below the Button
+        with st.expander("📄 Summary of MoM Configuration"):
+            st.markdown(f"""
+            - **Font:** {selected_font}  
+            - **Bold Text Color:** {selected_color}  
+            - **Language:** {selected_language}  
+            - **Uploaded File Type:** {file_type}  
+            """)
+
+        # ✅ Placeholders for Notifications and Stepper
+        notification_placeholder = st.empty()
+        stepper_container = st.empty()
+
+        # ✅ If button is clicked, start processing
         if process_button:
             notification_placeholder.info("📂 File uploaded successfully. Click 'Process File' to generate MoM.")
-            time.sleep(1)  # Small delay for user feedback
+            time.sleep(1)
             notification_placeholder.info("⏳ Uploading and processing... please wait.")
 
             files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
@@ -176,13 +224,7 @@ if st.session_state.show_options:
                 "language": language_options[selected_language]
             }
 
-            print(f"Sending font: {payload['font']}")
-            print(f"Sending color: {payload['color']}")
-            print(f"Sending language: {payload['language']}")
-
             filename = None
-
-            # ✅ Stream real-time updates from FastAPI
             response = requests.post(f"{API_URL}/upload/", files=files, data=payload, stream=True)
 
             if response.status_code == 200:
@@ -192,10 +234,9 @@ if st.session_state.show_options:
                     # ✅ Detect Filename
                     if "FILENAME::" in decoded_line:
                         filename = decoded_line.replace("FILENAME::", "").strip()
-                        print(f"🔎 Extracted filename: {filename}")
                         continue
 
-                    # ✅ Update stepper dynamically based on progress messages
+                    # ✅ Update stepper dynamically
                     if "⏳" in decoded_line or "🔄" in decoded_line:
                         st.session_state.progress = 1
                     elif "📝" in decoded_line:
@@ -207,45 +248,61 @@ if st.session_state.show_options:
                     elif "✅" in decoded_line:
                         st.session_state.progress = 5
 
-                    # ✅ Re-render the stepper
+                    # ✅ Update Stepper UI (Below Notifications)
                     stepper_html, _ = render_stepper(st.session_state.progress)
                     with stepper_container:
                         components.html(f"""
-                            <style>{css}</style>
-                            {stepper_html}
-                        """, height=height_needed)
+                               <style>{css}</style>
+                               {stepper_html}
+                           """, height=height_needed)
 
-                    time.sleep(1)  # Simulating stepper progression delay
+                    time.sleep(1)
 
-                # ✅ Final step update
+                # ✅ Final Step Update
                 st.session_state.progress = step_count - 1
                 stepper_html, _ = render_stepper(st.session_state.progress)
 
                 with stepper_container:
                     components.html(f"""
-                        <style>{css}</style>
-                        {stepper_html}
-                    """, height=height_needed)
+                           <style>{css}</style>
+                           {stepper_html}
+                       """, height=height_needed)
 
+                # ✅ Final Success Message (Above Stepper)
                 notification_placeholder.success("🎉 Processing complete! Your Meeting Minutes are ready.")
 
                 if filename:
                     filename = filename.strip()
-                    print(f"🔎 Filename received in UI: {filename}")
                     download_url = f"{API_URL}/download/{filename}"
 
-                    # ✅ Use HTML anchor with 'download' attribute to force direct download
-                    st.markdown(f'<a href="{download_url}" download="{filename}" target="_blank">'
-                                f'📥 **Download PDF**</a>', unsafe_allow_html=True)
+                    # ✅ Centered Download Button
+                    st.markdown(f"""
+                       <div style="display: flex; justify-content: center; margin-top: 20px;">
+                           <a href="{download_url}" download="{filename}" target="_blank"
+                               style="
+                                   background-color: #4CAF50; 
+                                   color: white; 
+                                   font-size: 16px; 
+                                   padding: 12px 24px; 
+                                   border: none; 
+                                   border-radius: 8px; 
+                                   cursor: pointer; 
+                                   text-decoration: none;
+                                   display: inline-block;">
+                               📥 Download PDF
+                           </a>
+                       </div>
+                       """, unsafe_allow_html=True)
                 else:
                     notification_placeholder.error("❌ Error retrieving the file!")
 
             else:
                 notification_placeholder.error("❌ Something went wrong!")
 
-    # ✅ Render Stepper Placeholder BELOW the notification
-    with stepper_container:
-        components.html(f"""
-            <style>{css}</style>
-            {stepper_html}
-        """, height=height_needed)
+        # ✅ Render Stepper Placeholder BELOW the notifications
+        with stepper_container:
+            components.html(f"""
+                   <style>{css}</style>
+                   {stepper_html}
+               """, height=height_needed)
+
