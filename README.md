@@ -36,6 +36,12 @@ Audio2Summary/
 │── test.py                       # Test cases
 │── ui.py                         # Streamlit UI
 ```
+
+## **📽️ Video Demo**
+🎥 Watch how MoMify works in action!  
+[![Watch the Demo](https://img.youtube.com/vi/Pp-YiPpT4Lw/maxresdefault.jpg)](https://youtu.be/Pp-YiPpT4Lw)
+🔗 **Click the image above to watch the full demo!**  
+
 ## 📸 Steps and Screenshots
 
 ### Landing Page
@@ -105,11 +111,6 @@ Pick any color for the bolded text using a color picker.
   - Is structured with clear section headers and bullet points.
     ![Output PDF 1](img/output-1.png)  
     ![Output PDF 2](img/output-2.png)
-
-## **📽️ Video Demo**
-🎥 Watch how MoMify works in action!  
-[![Watch the Demo](https://img.youtube.com/vi/Pp-YiPpT4Lw/maxresdefault.jpg)](https://youtu.be/Pp-YiPpT4Lw)
-🔗 **Click the image above to watch the full demo!**  
 
 ## **🛠️ Installation**
 ### **1️⃣ Clone the Repository**
