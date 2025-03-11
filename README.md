@@ -32,6 +32,7 @@ Audio2Summary/
 │── main.py                      # Backend logic (testing & processing)
 │── Pipfile                      # Dependency management (Pipenv)
 │── Pipfile.lock                  # Dependency lock file
+│── requirements.txt              # Python package dependencies
 │── README.md                     # You are here!
 │── test.py                       # Test cases
 │── ui.py                         # Streamlit UI
