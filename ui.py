@@ -3,6 +3,7 @@ from ui_components.introduction import show_introduction
 from ui_components.customization import show_customization
 from ui_components.file_upload import upload_file
 from ui_components.processing import process_file
+from logger import log_messages
 
 # ✅ Load external CSS
 def load_css():

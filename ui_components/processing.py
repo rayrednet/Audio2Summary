@@ -3,11 +3,12 @@ import requests
 import time
 import streamlit.components.v1 as components
 from ui_components.stepper import render_stepper
+from logger import logger, log_messages
 
 API_URL = "http://localhost:8000"
 
 def process_file(uploaded_file, selected_font, selected_color, selected_language, css):
-    """Handles file processing and UI updates in Streamlit."""
+    """Handles file processing and UI updates in Streamlit with logging."""
 
     # ✅ Process File Button
     process_button = st.button("🚀 Process File Now", key="process_file_now", help="Click to start processing")
@@ -30,9 +31,10 @@ def process_file(uploaded_file, selected_font, selected_color, selected_language
         st.session_state.progress = 0  # Initialize progress
 
     stepper_html, step_count = render_stepper(st.session_state.progress)
-    height_needed = step_count * 70 + 100  # Adjusted for padding
+    height_needed = step_count * 70 + 100
 
     if process_button:
+        logger.info("📂 File upload started.")
         notification_placeholder.info("📂 File uploaded successfully. Processing... please wait.")
         time.sleep(1)
 
@@ -53,18 +55,24 @@ def process_file(uploaded_file, selected_font, selected_color, selected_language
 
                 if "FILENAME::" in decoded_line:
                     filename = decoded_line.replace("FILENAME::", "").strip()
+                    logger.info(f"📄 Processed file available: {filename}")
                     continue
 
                 # ✅ Update Stepper Progress
                 if "⏳" in decoded_line or "🔄" in decoded_line:
+                    logger.info("🔄 Extracting audio...")
                     st.session_state.progress = 1
                 elif "📝" in decoded_line:
+                    logger.info("📝 Transcribing audio using Whisper AI...")
                     st.session_state.progress = 2
                 elif "📑" in decoded_line:
+                    logger.info("📑 Summarizing transcript using GPT-4...")
                     st.session_state.progress = 3
                 elif "📄" in decoded_line:
+                    logger.info("📄 Generating PDF output...")
                     st.session_state.progress = 4
                 elif "✅" in decoded_line:
+                    logger.info("✅ Processing complete!")
                     st.session_state.progress = 5
 
                 # ✅ Update Stepper UI
@@ -74,6 +82,7 @@ def process_file(uploaded_file, selected_font, selected_color, selected_language
 
                 time.sleep(1)
 
+
             # ✅ Final Step Update
             st.session_state.progress = step_count - 1
             stepper_html, _ = render_stepper(st.session_state.progress)
@@ -82,6 +91,7 @@ def process_file(uploaded_file, selected_font, selected_color, selected_language
                 components.html(f"<style>{css}</style>{stepper_html}", height=height_needed)
 
             notification_placeholder.success("🎉 Processing complete! Your Meeting Minutes are ready.")
+            logger.info("🎉 MoM successfully generated.")
 
             # ✅ Show Download Button
             if filename:
@@ -122,12 +132,13 @@ def process_file(uploaded_file, selected_font, selected_color, selected_language
                     </a>
                 </div>
                 """, unsafe_allow_html=True)
-
+                logger.info(f"📥 Download link generated: {download_url}")
             else:
                 notification_placeholder.error("❌ Error retrieving the file!")
-
+                logger.error("❌ File retrieval failed!")
         else:
             notification_placeholder.error("❌ Something went wrong!")
+            logger.error(f"❌ API Error! Status Code: {response.status_code}")
 
     # ✅ Render Stepper UI Below
     with stepper_container:

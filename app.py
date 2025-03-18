@@ -16,6 +16,7 @@ from fpdf import FPDF
 from pydub import AudioSegment
 from dotenv import load_dotenv
 from datetime import datetime
+from logger import logger
 app = FastAPI()
 
 # Custom Middleware to increase request size
@@ -107,40 +108,55 @@ def extract_audio(file_path):
 
     print(f"\nProcessing file: {file_path} (Type: {file_extension})")
 
-    if file_extension in [".mp4", ".mov", ".avi", ".mkv", ".webm"]:
-        print("🎥 Detected video file. Extracting audio...")
-        video = VideoFileClip(file_path)
+    logger.info(f"🔍 Processing file: {file_path} (Type: {file_extension})")
 
-        if not video.audio:
-            raise ValueError("❌ No audio found in the video file!")
+    try:
+        if file_extension in [".mp4", ".mov", ".avi", ".mkv", ".webm"]:
+            logger.info("🎥 Detected video file. Extracting audio...")
+            print("🎥 Detected video file. Extracting audio...")
+            video = VideoFileClip(file_path)
 
-        video.audio.write_audiofile(audio_path, codec="pcm_s16le")
+            if not video.audio:
+                raise ValueError("❌ No audio found in the video file!")
 
-    elif file_extension in [".wav", ".mp3", ".m4a", ".wma", ".aac", ".flac", ".ogg"]:
-        print("🎵 Detected audio file. Converting to WAV...")
-        audio = AudioSegment.from_file(file_path)
-        audio.export(audio_path, format="wav")
+            video.audio.write_audiofile(audio_path, codec="pcm_s16le")
 
-    else:
-        raise ValueError(f"❌ Unsupported file format: {file_extension}")
+        elif file_extension in [".wav", ".mp3", ".m4a", ".wma", ".aac", ".flac", ".ogg"]:
+            logger.info("🎵 Detected audio file. Converting to WAV...")
+            print("🎵 Detected audio file. Converting to WAV...")
+            audio = AudioSegment.from_file(file_path)
+            audio.export(audio_path, format="wav")
 
-    print(f"✅ Audio saved to {audio_path}")
-    return audio_path
+        else:
+            raise ValueError(f"❌ Unsupported file format: {file_extension}")
+
+        print(f"✅ Audio saved to {audio_path}")
+        logger.info(f"✅ Audio saved to {audio_path}")
+        return audio_path
+    except Exception as e:
+        logger.error(f"❌ Error extracting audio from {file_path}: {e}")
+        raise
 
 
 ### **🔹 Transcribe Audio with Whisper (Using GPU if Available)**
 def transcribe_audio(audio_path):
     if not torch.cuda.is_available():
         print("⚠️ Warning: No GPU detected, running on CPU. This will be slower!")
+        logger.warning("⚠️ No GPU detected, running on CPU. This may be slower.")
 
     print("\nLoading Whisper model...")
     model = whisper.load_model("medium").to("cuda" if torch.cuda.is_available() else "cpu")
 
     print(f"✅ Model is running on: {'cuda' if torch.cuda.is_available() else 'cpu'}")
+    logger.info(f"✅ Model is running on: {'cuda' if torch.cuda.is_available() else 'cpu'}")
 
-    result = model.transcribe(audio_path)
-    return result["text"]
-
+    try:
+        result = model.transcribe(audio_path)
+        logger.info("✅ Transcription completed successfully.")
+        return result["text"]
+    except Exception as e:
+        logger.error(f"❌ Error during transcription: {e}")
+        raise
 
 ### **🔹 Summarize Transcription into MoM Format**
 def summarize_text(transcription, language="en"):
@@ -304,81 +320,88 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="
     print(f"🎨 Converted RGB Color: {r}, {g}, {b}")
 
     pdf_path = os.path.join(OUTPUT_DIR, filename)
-    pdf = PDFWithFooter()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
 
-    # ✅ Register Poppins font (if not already registered)
-    pdf.add_font("Poppins", "", "assets/fonts/Poppins-Regular.ttf", uni=True)
-    pdf.add_font("Poppins", "B", "assets/fonts/Poppins-Bold.ttf", uni=True)
+    logger.info(f"\n📜 Exporting summary to PDF: {filename}")
+    logger.info(f"🎨 Chosen font: {font}, Color: {color}, Language: {language}")
 
-    pdf.set_font("Poppins", "", 12)  # Normal text
-    pdf.set_font("Poppins", "B", 14)  # Bold text
+    try:
+        pdf = PDFWithFooter()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
 
-    # ✅ Set Title Formatting (Always Bold and Colored)
-    pdf.set_font(font, "B", 20)
-    pdf.set_text_color(r, g, b)  # Apply user-selected color
-    pdf.cell(200, 10, "MEETING MINUTES", ln=True, align='C')
+        # ✅ Register Poppins font (if not already registered)
+        pdf.add_font("Poppins", "", "assets/fonts/Poppins-Regular.ttf", uni=True)
+        pdf.add_font("Poppins", "B", "assets/fonts/Poppins-Bold.ttf", uni=True)
 
-    # ✅ Draw a colored line below the title
-    pdf.ln(2)  # Small space before the line
-    pdf.set_draw_color(r, g, b)  # Use the user-selected color
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())  # Draw a horizontal line across the page
+        pdf.set_font("Poppins", "", 12)  # Normal text
+        pdf.set_font("Poppins", "B", 14)  # Bold text
 
-    pdf.ln(8)  # Space after the line before the content
+        # ✅ Set Title Formatting (Always Bold and Colored)
+        pdf.set_font(font, "B", 20)
+        pdf.set_text_color(r, g, b)  # Apply user-selected color
+        pdf.cell(200, 10, "MEETING MINUTES", ln=True, align='C')
 
-    # ✅ Replace **bold** markers from Markdown
-    summary = summary.replace("**", "")
+        # ✅ Draw a colored line below the title
+        pdf.ln(2)  # Small space before the line
+        pdf.set_draw_color(r, g, b)  # Use the user-selected color
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())  # Draw a horizontal line across the page
 
-    # ✅ Define section headers that should be bold and colored
-    bold_headers_dict = {
-        "en": ["Meeting Title:", "Date & Time:", "Attendees:", "Agenda:",
-               "Discussion Points:", "Action Items:", "Conclusion:", "Next Meeting Date:"],
+        pdf.ln(8)  # Space after the line before the content
 
-        "id": ["Judul Rapat:", "Tanggal & Waktu:", "Peserta:", "Agenda:",
-               "Poin Diskusi:", "Tindakan:", "Kesimpulan:", "Tanggal Rapat Berikutnya:"],
+        # ✅ Replace **bold** markers from Markdown
+        summary = summary.replace("**", "")
 
-        "ms": ["Tajuk Mesyuarat:", "Tarikh & Masa:", "Peserta:", "Agenda:",
-               "Perkara Dibincangkan:", "Tindakan:", "Kesimpulan:", "Tarikh Mesyuarat Seterusnya:"],
+        # ✅ Define section headers that should be bold and colored
+        bold_headers_dict = {
+            "en": ["Meeting Title:", "Date & Time:", "Attendees:", "Agenda:",
+                   "Discussion Points:", "Action Items:", "Conclusion:", "Next Meeting Date:"],
 
-        "tl": ["Pamagat ng Pulong:", "Petsa at Oras:", "Mga Dumalo:", "Adyenda:",
-               "Mga Punto ng Talakayan:", "Mga Hakbang na Dapat Gawin:", "Konklusyon:",
-               "Susunod na Petsa ng Pagpupulong:"]
-    }
+            "id": ["Judul Rapat:", "Tanggal & Waktu:", "Peserta:", "Agenda:",
+                   "Poin Diskusi:", "Tindakan:", "Kesimpulan:", "Tanggal Rapat Berikutnya:"],
 
-    # ✅ Debugging: Print what language was actually used
-    if language not in bold_headers_dict:
-        print(f"⚠️ Warning: Language '{language}' not found, defaulting to 'en'.")
-        language = "en"
+            "ms": ["Tajuk Mesyuarat:", "Tarikh & Masa:", "Peserta:", "Agenda:",
+                   "Perkara Dibincangkan:", "Tindakan:", "Kesimpulan:", "Tarikh Mesyuarat Seterusnya:"],
 
-    bold_headers = bold_headers_dict[language]
-    print(f"📌 Using bold headers for language: {language}")
-    print(f"🔎 Expected bold headers: {bold_headers}")
+            "tl": ["Pamagat ng Pulong:", "Petsa at Oras:", "Mga Dumalo:", "Adyenda:",
+                   "Mga Punto ng Talakayan:", "Mga Hakbang na Dapat Gawin:", "Konklusyon:",
+                   "Susunod na Petsa ng Pagpupulong:"]
+        }
 
-    # ✅ Debug: Print Summary Before Processing
-    print("\n📜 Processed Summary Content:\n", summary)
+        # ✅ Debugging: Print what language was actually used
+        if language not in bold_headers_dict:
+            print(f"⚠️ Warning: Language '{language}' not found, defaulting to 'en'.")
+            language = "en"
 
-    lines = summary.split("\n")
-    for line in lines:
-        stripped_line = line.strip()
+        bold_headers = bold_headers_dict[language]
+        print(f"📌 Using bold headers for language: {language}")
+        print(f"🔎 Expected bold headers: {bold_headers}")
 
-        # ✅ If the line is a bold header, apply bold font & selected color
-        if any(stripped_line.startswith(header) for header in bold_headers):
-            print(f"✅ Applying bold color to: {stripped_line}")
-            pdf.set_font(font, "B", 14)  # Apply Bold font
-            pdf.set_text_color(r, g, b)  # Apply user-selected color
-        else:
-            pdf.set_font(font, "", 12)  # Regular font
-            pdf.set_text_color(0, 0, 0)  # Reset to default black for normal text
+        # ✅ Debug: Print Summary Before Processing
+        print("\n📜 Processed Summary Content:\n", summary)
 
-        pdf.multi_cell(0, 10, line)
-        pdf.ln(2)
+        lines = summary.split("\n")
+        for line in lines:
+            stripped_line = line.strip()
 
-    pdf.output(pdf_path)
-    print(f"✅ Minutes of Meeting saved to {pdf_path}")
+            # ✅ If the line is a bold header, apply bold font & selected color
+            if any(stripped_line.startswith(header) for header in bold_headers):
+                print(f"✅ Applying bold color to: {stripped_line}")
+                pdf.set_font(font, "B", 14)  # Apply Bold font
+                pdf.set_text_color(r, g, b)  # Apply user-selected color
+            else:
+                pdf.set_font(font, "", 12)  # Regular font
+                pdf.set_text_color(0, 0, 0)  # Reset to default black for normal text
 
-    return filename
+            pdf.multi_cell(0, 10, line)
+            pdf.ln(2)
 
+        pdf.output(pdf_path)
+        print(f"✅ Minutes of Meeting saved to {pdf_path}")
+
+        return filename
+    except Exception as e:
+        logger.error(f"❌ Error exporting PDF: {e}")
+        raise
 
 ### **🔹 FastAPI Endpoints**
 @app.post("/upload/")
@@ -397,6 +420,8 @@ async def upload_file(
     print(f"✅ Received color: {color}")
     print(f"✅ Received language: {language}")
 
+    logger.info(f"📂 File uploaded: {file.filename} | Font: {font} | Color: {color} | Language: {language}")
+
     async def event_stream():
         filename = None
         async for message in progress_generator(file_path, font=font, color=color, language=language):
@@ -413,9 +438,11 @@ async def upload_file(
 async def download_file(filename: str):
     filepath = os.path.abspath(os.path.join(OUTPUT_DIR, filename))
     print(f"Trying to serve file: {filepath}")
+    logger.info(f"📥 Trying to serve file: {filepath}")
 
     if not os.path.exists(filepath):
         print("❌ File not found!")
+        logger.error("❌ File not found!")
         return {"error": "File not found"}
 
     # ✅ Force the browser to download the file instead of opening it
