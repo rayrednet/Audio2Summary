@@ -30,3 +30,36 @@ logging.basicConfig(
 
 # Create a logger instance
 logger = logging.getLogger("MoMify")
+
+
+# ✅ **Function to Handle System Errors and Provide Suggestions**
+def handle_system_error(error_message):
+    """
+    Handles system errors by logging them, providing a formatted error message, and suggesting solutions.
+
+    Args:
+        error_message (str): The error description.
+    """
+    log_entry = f"❌ Error encountered: {error_message}"
+    logger.error(log_entry)
+
+    # ✅ Error handling suggestions
+    if "file format" in error_message.lower():
+        suggestion = "🔹 Suggestion: Please upload a supported audio or video file (MP3, WAV, MP4, etc.)."
+
+    elif "file size" in error_message.lower():
+        suggestion = "🔹 Suggestion: Try compressing the file or selecting a smaller file (Max: 1GB)."
+
+    elif "no audio" in error_message.lower():
+        suggestion = "🔹 Suggestion: Ensure the video contains an audio track before uploading."
+
+    elif "network" in error_message.lower() or "connection" in error_message.lower():
+        suggestion = "🔹 Suggestion: Check your internet connection and try again."
+
+    elif "gpu" in error_message.lower():
+        suggestion = "🔹 Suggestion: No GPU detected. Running on CPU, which may be slower."
+
+    else:
+        suggestion = "🔹 Suggestion: Please check the error log for more details."
+
+    logger.warning(suggestion)

@@ -17,6 +17,7 @@ from pydub import AudioSegment
 from dotenv import load_dotenv
 from datetime import datetime
 from logger import logger
+from logger import handle_system_error
 app = FastAPI()
 
 # Custom Middleware to increase request size
@@ -167,6 +168,7 @@ def extract_audio(file_path):
         return audio_path
     except Exception as e:
         logger.error(f"❌ Error extracting audio from {file_path}: {e}")
+        handle_system_error(str(e))
         raise
 
 def transcribe_audio_with_retry(audio_path):
@@ -196,6 +198,7 @@ def transcribe_audio(audio_path):
         return result["text"]
     except Exception as e:
         logger.error(f"❌ Error during transcription: {e}")
+        handle_system_error(str(e))
         raise
 
 ### **🔹 Summarize Transcription into MoM Format**
@@ -441,6 +444,7 @@ def export_to_pdf(summary, filename="Meeting_Minutes.pdf", font="Arial", color="
         return filename
     except Exception as e:
         logger.error(f"❌ Error exporting PDF: {e}")
+        handle_system_error(str(e))
         raise
 
 ### **🔹 FastAPI Endpoints**
@@ -483,6 +487,7 @@ async def download_file(filename: str):
     if not os.path.exists(filepath):
         print("❌ File not found!")
         logger.error("❌ File not found!")
+        handle_system_error(str(e))
         return {"error": "File not found"}
 
     # ✅ Force the browser to download the file instead of opening it
