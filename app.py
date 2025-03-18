@@ -43,6 +43,38 @@ OUTPUT_DIR = "outputs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+def retry_processing(function, function_name, max_attempts=3, delay=2):
+    """
+    Retries executing a function up to `max_attempts` times while logging the attempts.
+
+    Args:
+        function (callable): The function to retry.
+        function_name (str): The name of the function being retried (for logging).
+        max_attempts (int): The maximum number of retry attempts.
+        delay (int): The wait time (in seconds) between retries.
+
+    Returns:
+        Any: The function output if successful, otherwise raises an exception.
+    """
+    attempt = 0
+
+    while attempt < max_attempts:
+        try:
+            logger.info(f"🔄 Attempt {attempt + 1}/{max_attempts} - Executing {function_name}()")
+            result = function()
+            logger.info(f"✅ {function_name}() executed successfully on attempt {attempt + 1}")
+            return result
+
+        except Exception as e:
+            attempt += 1
+            logger.error(f"⚠️ Attempt {attempt} failed for {function_name}: {e}")
+
+            if attempt < max_attempts:
+                logger.info(f"⏳ Retrying {function_name}() in {delay} seconds...")
+                time.sleep(delay)
+
+    logger.critical(f"❌ Maximum retry attempts reached. {function_name}() failed.")
+    raise RuntimeError(f"❌ Maximum retry attempts reached. {function_name}() failed.")
 
 # ✅ Function to Send Progress Updates to UI
 async def progress_generator(file_path, font="Arial", color="000000", language="en"):
@@ -56,17 +88,17 @@ async def progress_generator(file_path, font="Arial", color="000000", language="
     time.sleep(1)
 
     yield "📝 Transcribing audio...\n"
-    transcription = transcribe_audio(audio_path)
+    transcription = transcribe_audio_with_retry(audio_path)
     time.sleep(1)
 
     yield "📑 Summarizing transcript...\n"
-    summary = summarize_text(transcription, language)
+    summary = summarize_text_with_retry(transcription, language)
     time.sleep(1)
 
     yield "📄 Generating PDF...\n"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    filename = export_to_pdf(summary, f"Meeting_Minutes_{timestamp}.pdf", font, color, language)
+    filename =  export_pdf_with_retry(summary, f"Meeting_Minutes_{timestamp}.pdf", font, color, language)
     time.sleep(1)
 
     yield f"✅ Processing complete! Download: /download/{filename}\n"
@@ -137,6 +169,14 @@ def extract_audio(file_path):
         logger.error(f"❌ Error extracting audio from {file_path}: {e}")
         raise
 
+def transcribe_audio_with_retry(audio_path):
+    return retry_processing(lambda: transcribe_audio(audio_path), "transcribe_audio", max_attempts=3, delay=5)
+
+def summarize_text_with_retry(transcription, language="en"):
+    return retry_processing(lambda: summarize_text(transcription, language), "summarize_text", max_attempts=3, delay=3)
+
+def export_pdf_with_retry(summary, filename, font, color, language):
+    return retry_processing(lambda: export_to_pdf(summary, filename, font, color, language), "export_to_pdf", max_attempts=3, delay=2)
 
 ### **🔹 Transcribe Audio with Whisper (Using GPU if Available)**
 def transcribe_audio(audio_path):
