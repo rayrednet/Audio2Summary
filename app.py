@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from logger import logger
 from logger import handle_system_error
+from metrics import  log_evaluation_metrics
 app = FastAPI()
 
 # Custom Middleware to increase request size
@@ -84,6 +85,8 @@ async def progress_generator(file_path, font="Arial", color="000000", language="
     yield "⏳ Upload successful. Starting processing...\n"
     time.sleep(1)
 
+    start_time = time.time()
+
     yield "🔄 Extracting audio...\n"
     audio_path = extract_audio(file_path)
     time.sleep(1)
@@ -94,6 +97,8 @@ async def progress_generator(file_path, font="Arial", color="000000", language="
 
     yield "📑 Summarizing transcript...\n"
     summary = summarize_text_with_retry(transcription, language)
+    end_time = time.time()
+    log_evaluation_metrics(summary, start_time, end_time)
     time.sleep(1)
 
     yield "📄 Generating PDF...\n"
@@ -217,6 +222,12 @@ def summarize_text(transcription, language="en"):
         messages = [
             SystemMessage(
                 content=f"You are an AI that converts meeting transcripts into structured Minutes of Meeting (MoM). "
+                        f"Make the summary **professional yet easy to read**. "
+                        f"- Keep all key details intact. "
+                        f"- Break long sentences into two shorter ones for better readability. "
+                        f"- Avoid technical words when simpler ones can be used. "
+                        f"- Ensure smooth transitions between points."
+                        f"- Use proper business language (not casual)."
                         f"Generate the MoM **entirely in {language}**. Do not mix languages."
                         f"Do NOT add numbers before section headers."
                         f"Use only the exact section headers from the list below. Do NOT change them."
@@ -487,7 +498,6 @@ async def download_file(filename: str):
     if not os.path.exists(filepath):
         print("❌ File not found!")
         logger.error("❌ File not found!")
-        handle_system_error(str(e))
         return {"error": "File not found"}
 
     # ✅ Force the browser to download the file instead of opening it

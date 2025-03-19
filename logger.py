@@ -4,9 +4,12 @@ import os
 # Ensure logs directory exists
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
+EVAL_LOG_DIR = os.path.join(LOG_DIR, "evaluations")
+os.makedirs(EVAL_LOG_DIR, exist_ok=True)
 
 # Define log file path
 LOG_FILE = os.path.join(LOG_DIR, "momify.log")
+EVAL_LOG_FILE = os.path.join(EVAL_LOG_DIR, "evaluation.log")
 
 # Create a list to store logs for UI
 log_messages = []
@@ -19,7 +22,7 @@ class StreamlitLogHandler(logging.Handler):
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,  # Change to DEBUG for more details
+    level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[
         logging.FileHandler(LOG_FILE, encoding="utf-8"),  # Save to file
@@ -30,6 +33,14 @@ logging.basicConfig(
 
 # Create a logger instance
 logger = logging.getLogger("MoMify")
+
+# ✅ Configure Evaluation Logger (Metrics & Performance)
+eval_logger = logging.getLogger("EvaluationLogger")
+eval_handler = logging.FileHandler(EVAL_LOG_FILE, encoding="utf-8")
+eval_formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+eval_handler.setFormatter(eval_formatter)
+eval_logger.addHandler(eval_handler)
+eval_logger.setLevel(logging.INFO)
 
 
 # ✅ **Function to Handle System Errors and Provide Suggestions**
